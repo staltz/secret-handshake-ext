@@ -1,58 +1,75 @@
-'use strict'
-var pull = require('pull-stream')
-var boxes = require('pull-box-stream')
-var clarify = require('clarify-error')
-var errors = require('./errors')
-var Handshake = require('pull-handshake')
-var random = require('./random')
+const pull = require('pull-stream')
+const boxes = require('pull-box-stream')
+const Handshake = require('pull-handshake')
+const chloride = require('chloride')
+const errors = require('./errors')
+
+function createRandom(numBytes) {
+  const buf = Buffer.alloc(numBytes)
+  chloride.randombytes(buf, numBytes)
+  return buf
+}
 
 function isBuffer(buf, len) {
   return Buffer.isBuffer(buf) && buf.length === len
 }
 
-module.exports = function (stateless) {
-  var exports = {}
-  //client is Alice
-  //create the client stream with the public key you expect to connect to.
-  exports.createClientStream = function (alice, app_key, timeout) {
-    return function (bob_pub, seed, cb) {
-      if ('function' == typeof seed) (cb = seed), (seed = null)
+function createAbort(shake) {
+  return function abort(err, reason) {
+    if (err && err !== true) {
+      shake.abort(new Error(reason, { cause: err }))
+    } else {
+      shake.abort(new Error(reason))
+    }
+  }
+}
 
-      //alice may be null, e.g. https://github.com/ssbc/ssb-invite/blob/b93918b3e6adcb8dd68674fdbb270b49ff07f2a8/index.js#L219
-      var state = stateless.initialize({
-        app_key: app_key,
-        local: alice,
-        remote: { publicKey: bob_pub },
-        seed: seed,
-        random: random(32),
-      })
-
-      var stream = Handshake({ timeout: timeout }, cb)
-      var shake = stream.handshake
-      stream.handshake = null
-
-      function abort(err, reason) {
-        if (err && err !== true) shake.abort(clarify(err, reason), cb)
-        else shake.abort(new Error(reason), cb)
+module.exports = function protocol(crypto) {
+  // client is Alice
+  // create the client stream with the public key you expect to connect to.
+  function createClientStream(alice, app_key, timeout) {
+    return function getClientStream(bob_pub, seed, cb) {
+      if (typeof seed === 'function') {
+        cb = seed
+        seed = null
       }
 
-      shake.write(stateless.createChallenge(state))
+      // alice may be null, e.g. https://github.com/ssbc/ssb-invite/blob/b93918b3e6adcb8dd68674fdbb270b49ff07f2a8/index.js#L219
+      let state = crypto.initialize({
+        app_key,
+        random: createRandom(32),
+        seed,
+        local: alice,
+        remote: { publicKey: bob_pub },
+      })
 
-      shake.read(stateless.challenge_length, function (err, msg) {
+      const stream = Handshake({ timeout }, cb)
+      const shake = stream.handshake
+      stream.handshake = null
+      const abort = createAbort(shake)
+
+      // phase 1: client sends challenge
+      shake.write(crypto.createChallenge(state))
+
+      // phase 2: receiving and verifying server's challenge
+      shake.read(crypto.challenge_length, (err, msg) => {
         if (err) return abort(err, errors.serverErrorOnChallenge)
-        //create the challenge first, because we need to generate a local key
-        if (!(state = stateless.clientVerifyChallenge(state, msg)))
+        if (!(state = crypto.clientVerifyChallenge(state, msg))) {
           return abort(null, errors.serverInvalidChallenge)
+        }
 
-        shake.write(stateless.clientCreateAuth(state))
+        // phase 3: client sends hello (including proof they know the server)
+        shake.write(crypto.clientCreateAuth(state))
 
-        shake.read(stateless.server_auth_length, function (err, boxed_sig) {
+        // phase 4: receiving and verifying server's acceptance
+        shake.read(crypto.server_auth_length, (err, boxed_sig) => {
           if (err) return abort(err, errors.serverHungUp)
-
-          if (!(state = stateless.clientVerifyAccept(state, boxed_sig)))
+          if (!(state = crypto.clientVerifyAccept(state, boxed_sig))) {
             return abort(null, errors.serverAcceptInvalid)
+          }
 
-          cb(null, shake.rest(), (state = stateless.clean(state)))
+          // Conclude handshake
+          cb(null, shake.rest(), (state = crypto.clean(state)))
         })
       })
 
@@ -60,67 +77,68 @@ module.exports = function (stateless) {
     }
   }
 
-  //server is Bob.
-  exports.createServerStream = function (bob, authorize, app_key, timeout) {
-    return function (cb) {
-      var state = stateless.initialize({
-        app_key: app_key,
+  // server is Bob.
+  function createServerStream(bob, authorize, app_key, timeout) {
+    return function getServerStream(cb) {
+      let state = crypto.initialize({
+        app_key,
+        random: createRandom(32),
         local: bob,
-        //note, the server doesn't know the remote until it receives ClientAuth
-        random: random(32),
+        // remote: unknown until server receives ClientAuth
       })
-      var stream = Handshake({ timeout: timeout }, cb)
 
-      var shake = stream.handshake
+      const stream = Handshake({ timeout }, cb)
+      const shake = stream.handshake
       stream.handshake = null
+      const abort = createAbort(shake)
 
-      function abort(err, reason) {
-        if (err && err !== true) shake.abort(err)
-        else shake.abort(new Error(reason))
-        // shake.abort(err) triggers cb(err)
-      }
-
-      shake.read(stateless.challenge_length, function (err, challenge) {
+      // phase 1: receiving and verifying client's challenge
+      shake.read(crypto.challenge_length, (err, challenge) => {
         if (err) return abort(err, errors.clientErrorOnChallenge)
-        if (!(state = stateless.verifyChallenge(state, challenge)))
+        if (!(state = crypto.verifyChallenge(state, challenge))) {
           return shake.abort(new Error(errors.clientInvalidChallenge))
+        }
 
-        shake.write(stateless.createChallenge(state))
-        shake.read(stateless.client_auth_length, function (err, hello) {
+        // phase 2: server sends challenge
+        shake.write(crypto.createChallenge(state))
+
+        // phase 3: receiving and verifying client's hello
+        shake.read(crypto.client_auth_length, (err, hello) => {
           if (err) return abort(err, errors.clientErrorOnHello)
-
-          if (!(state = stateless.serverVerifyAuth(state, hello)))
+          if (!(state = crypto.serverVerifyAuth(state, hello))) {
             return abort(null, errors.clientInvalidHello)
+          }
 
-          //check if the user wants to speak to alice.
-          authorize(state.remote.publicKey, function (err, auth) {
+          // phase 4: server decides if they want client to connect with them
+          authorize(state.remote.publicKey, (err, auth) => {
             if (err) return abort(err, errors.serverErrorOnAuthorization)
             if (!auth) return abort(null, errors.clientUnauthorized)
             state.auth = auth
-            shake.write(stateless.serverCreateAccept(state))
-            cb(null, shake.rest(), (state = stateless.clean(state)))
+            shake.write(crypto.serverCreateAccept(state))
+
+            // Conclude handshake
+            cb(null, shake.rest(), (state = crypto.clean(state)))
           })
         })
       })
+
       return stream
     }
   }
 
-  //wrap the above into an actual handshake + encrypted session
-
-  exports.toKeys = stateless.toKeys
+  // wrap the above into an actual handshake + encrypted session
 
   function secure(cb) {
     return function (err, stream, state) {
       if (err) return cb(err)
 
-      var encryptNonce = state.remote.app_mac.slice(0, 24)
-      var decryptNonce = state.local.app_mac.slice(0, 24)
+      const encryptNonce = state.remote.app_mac.slice(0, 24)
+      const decryptNonce = state.local.app_mac.slice(0, 24)
 
       cb(null, {
         remote: state.remote.publicKey,
-        //on the server, attach any metadata gathered
-        //during `authorize` call
+        // on the server, attach any metadata gathered
+        // during `authorize` call
         auth: state.auth,
         crypto: {
           encryptKey: state.encryptKey,
@@ -140,29 +158,31 @@ module.exports = function (stateless) {
     }
   }
 
-  exports.client = exports.createClient = function (alice, app_key, timeout) {
-    var create = exports.createClientStream(alice, app_key, timeout)
+  function createClient(alice, app_key, timeout) {
+    const getStream = createClientStream(alice, app_key, timeout)
 
-    return function (bob, seed, cb) {
-      if (!isBuffer(bob, 32))
+    return function (bob_pub, seed, cb) {
+      if (!isBuffer(bob_pub, 32)) {
         throw new Error('createClient *must* be passed a public key')
-      if ('function' === typeof seed) return create(bob, secure(seed))
-      else return create(bob, seed, secure(cb))
+      }
+      if (typeof seed === 'function') return getStream(bob_pub, secure(seed))
+      else return getStream(bob_pub, seed, secure(cb))
     }
   }
 
-  exports.server = exports.createServer = function (
-    bob,
-    authorize,
-    app_key,
-    timeout
-  ) {
-    var create = exports.createServerStream(bob, authorize, app_key, timeout)
+  function createServer(bob, authorize, app_key, timeout) {
+    const getStream = createServerStream(bob, authorize, app_key, timeout)
 
     return function (cb) {
-      return create(secure(cb))
+      return getStream(secure(cb))
     }
   }
 
-  return exports
+  return {
+    createClient,
+    createServer,
+    client: createClient,
+    server: createServer,
+    toKeys: crypto.toKeys,
+  }
 }

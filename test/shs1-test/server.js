@@ -2,7 +2,7 @@
 
 const pull = require('pull-stream')
 const toPull = require('stream-to-pull-stream')
-const { createServer } = require('../..')
+const shs = require('../..')
 
 const appKey = Buffer.from(process.argv[2], 'hex')
 const bob = {
@@ -10,10 +10,10 @@ const bob = {
   secretKey: Buffer.from(process.argv[3], 'hex'),
   publicKey: Buffer.from(process.argv[4], 'hex'),
 }
-const authorize = (pubKey, cb) => cb(null, true) // all clients are allowed to connect
-const timeout = 10e3 // I hope this is milliseconds!
+const authorize = (pubKey, cb) => cb(null, true) // all clients are allowed
+const timeout = 10e3
 
-const shake = createServer(
+const shake = shs.createServer(
   bob,
   authorize,
   appKey,
@@ -23,7 +23,8 @@ const shake = createServer(
     log(`! ${err}`)
     process.exit(1)
     // shs1-test : If the server detects that the client is not well-behaved,
-    // it must immediately exit with a non-zero exit code, without writing any further data to stdout.
+    // it must immediately exit with a non-zero exit code, without writing any
+    // further data to stdout.
   }
 
   const { encryptKey, decryptKey, encryptNonce, decryptNonce } = stream.crypto

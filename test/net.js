@@ -3,18 +3,20 @@
 // https://github.com/dominictarr/multiserver
 // instead.
 
-var sodium = require('chloride')
-var net = require('net')
-var toPull = require('stream-to-pull-stream')
-var shs = require('../')
-var isBuffer = Buffer.isBuffer
-var pull = require('pull-stream')
-var Defer = require('pull-defer/duplex')
+const net = require('net')
+const sodium = require('chloride')
+const toPull = require('stream-to-pull-stream')
+const pull = require('pull-stream')
+const Defer = require('pull-defer/duplex')
+const shs = require('../')
+
+const isBuffer = Buffer.isBuffer
 
 function assertOpts(opts) {
   if (!(opts && 'object' === typeof opts))
     throw new Error('opts *must* be provided')
 }
+
 function assertKeys(opts) {
   if (
     !(
@@ -22,8 +24,9 @@ function assertKeys(opts) {
       isBuffer(opts.keys.publicKey) &&
       isBuffer(opts.keys.secretKey)
     )
-  )
+  ) {
     throw new Error('opts.keys = ed25519 key pair *must* be provided.')
+  }
 }
 
 function assertAppKey(opts) {
@@ -40,36 +43,37 @@ function assertAddr(addr) {
 }
 
 module.exports = function createNode(opts) {
-  var keys = isBuffer(opts.seed)
+  const keys = isBuffer(opts.seed)
     ? sodium.crypto_sign_seed_keypair(opts.seed)
     : opts.keys
 
   assertOpts(opts)
-  assertKeys({ keys: keys })
+  assertKeys({ keys })
   assertAppKey(opts)
 
-  var create = shs.createClient(keys, opts.appKey, opts.timeout)
+  const create = shs.createClient(keys, opts.appKey, opts.timeout)
 
   return {
     publicKey: keys.publicKey,
-    createServer: function (onConnect) {
-      if ('function' !== typeof opts.authenticate)
+    createServer(onConnect) {
+      if (typeof opts.authenticate !== 'function') {
         throw new Error(
           'function opts.authenticate(pub, cb)' +
             '*must* be provided in order to receive connections'
         )
-      var createServerStream = shs.createServer(
+      }
+      const createServerStream = shs.createServer(
         keys,
         opts.authenticate,
         opts.appKey,
         opts.timeout
       )
-      var server
-      return (server = net.createServer(function (stream) {
+      let server
+      return (server = net.createServer((stream) => {
         stream = toPull.duplex(stream)
         pull(
           stream,
-          createServerStream(function (err, stream) {
+          createServerStream((err, stream) => {
             if (err) return server.emit('unauthenticated', err)
             onConnect(stream)
           }),
@@ -77,28 +81,26 @@ module.exports = function createNode(opts) {
         )
       }))
     },
-    connect: function (addr, cb) {
+    connect(addr, cb) {
       assertAddr(addr)
-      var stream = toPull.duplex(net.connect(addr.port, addr.host))
+      const stream = toPull.duplex(net.connect(addr.port, addr.host))
 
       if (cb) {
         pull(stream, create(addr.key, cb), stream)
       } else {
-        var defer = Defer()
+        const defer = Defer()
 
         pull(
           stream,
-          create(addr.key, function (err, stream) {
-            if (err)
+          create(addr.key, (err, stream) => {
+            if (err) {
               defer.resolve({
-                source: function (abort, cb) {
-                  cb(err)
-                },
-                sink: function (read) {
-                  read(err, function () {})
-                },
+                source: pull.error(err),
+                sink: (read) => read(err, () => {}),
               })
-            else defer.resolve(stream)
+            } else {
+              defer.resolve(stream)
+            }
           }),
           stream
         )
