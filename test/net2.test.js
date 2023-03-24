@@ -12,16 +12,16 @@ const alice = cl.crypto_sign_seed_keypair(hash('alice'))
 const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const app_key = crypto.randomBytes(32)
 
-const bobN = netshs({
+const bobNode = netshs({
   keys: bob,
   appKey: app_key,
   authenticate(pub, cb) {
-    cb(null, true) // accept
+    cb(null, true) // accept anyone
   },
   timeout: 200,
 })
 
-const aliceN = netshs({
+const aliceNode = netshs({
   keys: alice,
   appKey: app_key,
   timeout: 200,
@@ -31,25 +31,37 @@ const aliceN = netshs({
 const PORT = 45034
 
 tape('test net.js, correct, callback', (t) => {
-  const server = bobN
+  const tcpServer = bobNode
     .createServer((stream) => {
-      t.deepEqual(stream.remote, alice.publicKey)
-      pull(stream, pull.through(console.log), stream) //echo
+      t.true(
+        Buffer.isBuffer(stream.remote) &&
+          Buffer.isBuffer(alice.publicKey) &&
+          stream.remote.equals(alice.publicKey),
+        "client's ID is Alice's ID"
+      )
+
+      pull(stream, stream) // echo
     })
-    .listen(PORT, () => {
-      aliceN.connect(
-        { host: 'localhost', port: PORT, key: bob.publicKey },
+    .listen(() => {
+      const port = tcpServer.address().port
+      aliceNode.connect(
+        { host: 'localhost', port, key: bob.publicKey },
         (err, stream) => {
           if (err) t.fail(err.message ?? err)
-          t.deepEqual(stream.remote, bob.publicKey)
+          t.true(
+            Buffer.isBuffer(stream.remote) &&
+              Buffer.isBuffer(bob.publicKey) &&
+              stream.remote.equals(bob.publicKey),
+            "server's ID is Bob's ID"
+          )
+
           pull(
             pull.values([Buffer.from('HELLO')]),
             stream,
             pull.collect((err, data) => {
               if (err) t.fail(err.message ?? err)
-              t.notOk(err)
-              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
-              server.close()
+              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'), 'echo')
+              tcpServer.close()
               t.end()
             })
           )
@@ -59,27 +71,33 @@ tape('test net.js, correct, callback', (t) => {
 })
 
 tape('test net.js, correct, stream directly', (t) => {
-  const server = bobN
+  const tcpServer = bobNode
     .createServer((stream) => {
-      t.deepEqual(stream.remote, alice.publicKey)
-      pull(stream, pull.through(console.log), stream) //echo
+      t.true(
+        Buffer.isBuffer(stream.remote) &&
+          Buffer.isBuffer(alice.publicKey) &&
+          stream.remote.equals(alice.publicKey),
+        "client's ID is Alice's ID"
+      )
+
+      pull(stream, stream) // echo
     })
-    .listen(PORT, () => {
+    .listen(() => {
+      const port = tcpServer.address().port
       pull(
         pull.values([Buffer.from('HELLO')]),
-        aliceN.connect({ port: PORT, key: bob.publicKey }),
+        aliceNode.connect({ port, key: bob.publicKey }),
         pull.collect((err, data) => {
           if (err) t.fail(err.message ?? err)
-          t.notOk(err)
-          t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
-          server.close()
+          t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'), 'echo')
+          tcpServer.close()
           t.end()
         })
       )
     })
 })
 
-const bobN2 = netshs({
+const bobNode2 = netshs({
   keys: bob,
   appKey: app_key,
   authenticate(pub, cb) {
@@ -88,36 +106,44 @@ const bobN2 = netshs({
 })
 
 tape('test net, error, callback', (t) => {
-  const server = bobN2
+  const tcpServer = bobNode2
     .createServer((stream) => {
       t.fail('this should never be called')
     })
-    .listen(PORT, () => {
-      console.log('CLIENT connect')
-      aliceN.connect({ port: PORT, key: bob.publicKey }, (err, stream) => {
-        console.log('client connected', err, stream)
-        t.ok(err)
+    .listen(() => {
+      const port = tcpServer.address().port
+      t.pass('client connect')
+      aliceNode.connect({ port, key: bob.publicKey }, (err) => {
+        t.ok(err, 'client got connection error')
+        t.match(
+          err.message,
+          /server does not wish to talk to us/,
+          'client got rejection'
+        )
         t.end()
-        server.close()
+        tcpServer.close()
       })
     })
 })
 
 tape('test net, error, stream', (t) => {
-  const server = bobN2
+  const tcpServer = bobNode2
     .createServer((stream) => {
       t.fail('this should never be called')
     })
-    .listen(PORT, () => {
+    .listen(() => {
+      const port = tcpServer.address().port
       pull(
-        aliceN.connect({
-          port: PORT,
-          key: bob.publicKey,
-        }),
+        aliceNode.connect({ port, key: bob.publicKey }),
         pull.collect((err, ary) => {
-          t.ok(err)
+          t.ok(err, 'client got connection error')
+          t.match(
+            err.message,
+            /server does not wish to talk to us/,
+            'client got rejection'
+          )
           t.end()
-          server.close()
+          tcpServer.close()
         })
       )
     })
@@ -127,21 +153,28 @@ tape('test net, create seed cap', (t) => {
   const seed = crypto.randomBytes(32)
   const keys = cl.crypto_sign_seed_keypair(seed)
 
-  const seedN = netshs({
+  const seedNode = netshs({
     seed: seed,
     appKey: app_key,
     // alice doesn't need authenticate
     // because she is the client.
   })
 
-  const server = bobN
+  const server = bobNode
     .createServer((stream) => {
-      t.deepEqual(stream.remote, keys.publicKey)
+      t.true(
+        Buffer.isBuffer(stream.remote) &&
+          Buffer.isBuffer(keys.publicKey) &&
+          stream.remote.equals(keys.publicKey),
+        "client's ID is correct"
+      )
+
       stream.source(true, () => {})
       server.close()
       t.end()
     })
-    .listen(PORT, () => {
-      seedN.connect({ port: PORT, key: bob.publicKey })
+    .listen(() => {
+      const port = server.address().port
+      seedNode.connect({ port, key: bob.publicKey })
     })
 })

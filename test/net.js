@@ -1,7 +1,4 @@
-// will probably remove this.
-// I am now moving using secret-handshake via
-// https://github.com/dominictarr/multiserver
-// instead.
+// This file is a precursor to multiserver with shs plugin
 
 const net = require('net')
 const sodium = require('chloride')
@@ -12,25 +9,14 @@ const shs = require('../')
 
 const isBuffer = Buffer.isBuffer
 
-function assertOpts(opts) {
-  if (!(opts && 'object' === typeof opts))
-    throw new Error('opts *must* be provided')
-}
-
-function assertKeys(opts) {
-  if (
-    !(
-      opts.keys &&
-      isBuffer(opts.keys.publicKey) &&
-      isBuffer(opts.keys.secretKey)
-    )
-  ) {
-    throw new Error('opts.keys = ed25519 key pair *must* be provided.')
-  }
-}
-
 function assertAppKey(opts) {
   if (!isBuffer(opts.appKey)) throw new Error('appKey must be provided')
+}
+
+function assertKeys(keys) {
+  if (!(keys && isBuffer(keys.publicKey) && isBuffer(keys.secretKey))) {
+    throw new Error('opts.keys = ed25519 key pair *must* be provided.')
+  }
 }
 
 function assertAddr(addr) {
@@ -42,16 +28,19 @@ function assertAddr(addr) {
     throw new Error('opts.host must be string or null')
 }
 
-module.exports = function createNode(opts) {
+module.exports = function createNode(opts = {}) {
   const keys = isBuffer(opts.seed)
     ? sodium.crypto_sign_seed_keypair(opts.seed)
     : opts.keys
 
-  assertOpts(opts)
-  assertKeys({ keys })
   assertAppKey(opts)
+  assertKeys(keys)
 
-  const create = shs.createClient(keys, opts.appKey, opts.timeout)
+  const createClientBoxStream = shs.createClient(
+    keys,
+    opts.appKey,
+    opts.timeout
+  )
 
   return {
     publicKey: keys.publicKey,
@@ -62,37 +51,37 @@ module.exports = function createNode(opts) {
             '*must* be provided in order to receive connections'
         )
       }
-      const createServerStream = shs.createServer(
+      const createServerBoxStream = shs.createServer(
         keys,
         opts.authenticate,
         opts.appKey,
         opts.timeout
       )
-      let server
-      return (server = net.createServer((stream) => {
-        stream = toPull.duplex(stream)
+      let tcpServer
+      return (tcpServer = net.createServer((serverDuplex) => {
+        serverDuplex = toPull.duplex(serverDuplex)
         pull(
-          stream,
-          createServerStream((err, stream) => {
-            if (err) return server.emit('unauthenticated', err)
+          serverDuplex,
+          createServerBoxStream((err, stream) => {
+            if (err) return tcpServer.emit('unauthenticated', err)
             onConnect(stream)
           }),
-          stream
+          serverDuplex
         )
       }))
     },
     connect(addr, cb) {
       assertAddr(addr)
-      const stream = toPull.duplex(net.connect(addr.port, addr.host))
+      const clientDuplex = toPull.duplex(net.connect(addr.port, addr.host))
 
       if (cb) {
-        pull(stream, create(addr.key, cb), stream)
+        pull(clientDuplex, createClientBoxStream(addr.key, cb), clientDuplex)
       } else {
         const defer = Defer()
 
         pull(
-          stream,
-          create(addr.key, (err, stream) => {
+          clientDuplex,
+          createClientBoxStream(addr.key, (err, stream) => {
             if (err) {
               defer.resolve({
                 source: pull.error(err),
@@ -102,7 +91,7 @@ module.exports = function createNode(opts) {
               defer.resolve(stream)
             }
           }),
-          stream
+          clientDuplex
         )
 
         return defer

@@ -13,100 +13,94 @@ const alice = cl.crypto_sign_seed_keypair(hash('alice'))
 const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const app_key = hash('app_key')
 
-tape('test with net', (t) => {
-  const createServer = shs.createServer(
-    bob,
-    (pub, cb) => cb(null, true), //accept
-    app_key,
-    100
-  )
+tape('test with TCP and always-accepting server', (t) => {
+  function accept(pub, cb) {
+    cb(null, true)
+  }
 
-  const createClient = shs.createClient(alice, app_key, 100)
+  const createServerBoxStream = shs.createServer(bob, accept, app_key, 100)
+  const createClientBoxStream = shs.createClient(alice, app_key, 100)
 
-  const PORT = 45034
-
-  const server = net
+  const tcpServer = net
     .createServer((stream) => {
-      stream = toPull.duplex(stream)
+      const serverDuplex = toPull.duplex(stream)
 
       pull(
-        stream,
-        createServer((err, stream) => {
-          console.log('server connected', err, stream)
-          pull(stream, stream) //echo
+        serverDuplex,
+        createServerBoxStream((err, unboxedStream) => {
+          t.pass('server connected')
+          pull(unboxedStream, unboxedStream) // echo
         }),
-        stream
+        serverDuplex
       )
     })
-    .listen(PORT, () => {
-      const stream = toPull.duplex(net.connect(PORT))
+    .listen(() => {
+      const port = tcpServer.address().port
+      const clientDuplex = toPull.duplex(net.connect(port))
 
-      console.log('CLIENT connect')
+      t.pass('client connecting')
       pull(
-        stream,
-        createClient(bob.publicKey, (err, stream) => {
-          console.log('client connected', err, stream)
+        clientDuplex,
+        createClientBoxStream(bob.publicKey, (err, unboxedStream) => {
+          t.pass('client connected')
           pull(
             pull.values([Buffer.from('HELLO')]),
-            stream,
+            unboxedStream,
             pull.collect((err, data) => {
-              t.notOk(err)
+              t.error(err, 'no error')
               t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
-              server.close()
+              tcpServer.close()
               t.end()
             })
           )
         }),
-        stream
+        clientDuplex
       )
     })
 })
 
-tape('test with net', (t) => {
+tape('test with TCP and always-rejecting server', (t) => {
   let n = 2
-  t.plan(2)
-  const createServer = shs.createServer(
-    bob,
-    (pub, cb) => cb(), // reject with no reason
-    app_key,
-    100
-  )
+  t.plan(4)
 
-  const createClient = shs.createClient(alice, app_key, 100)
+  function reject(pub, cb) {
+    cb(null, false)
+  }
 
-  const PORT = 45035
+  const createServerBoxStream = shs.createServer(bob, reject, app_key, 100)
+  const createClientBoxStream = shs.createClient(alice, app_key, 100)
 
-  const server = net
+  const tcpServer = net
     .createServer((stream) => {
-      stream = toPull.duplex(stream)
+      const serverDuplex = toPull.duplex(stream)
 
       pull(
-        stream,
-        createServer((err, stream) => {
-          t.ok(err)
-          console.log('server connected', err, stream)
+        serverDuplex,
+        createServerBoxStream((err) => {
+          t.pass('server got connection request')
+          t.match(err.message, /did not authorize/, 'server rejects')
           next()
         }),
-        stream
+        serverDuplex
       )
     })
-    .listen(PORT, () => {
-      const stream = toPull.duplex(net.connect(PORT))
+    .listen(() => {
+      const port = tcpServer.address().port
+      const clientDuplex = toPull.duplex(net.connect(port))
 
-      console.log('CLIENT connect')
+      t.pass('client connecting')
       pull(
-        stream,
-        createClient(bob.publicKey, (err, stream) => {
-          console.log('client connected', err, stream)
-          t.ok(err)
+        clientDuplex,
+        createClientBoxStream(bob.publicKey, (err) => {
+          t.match(err.message, /does not wish to talk/, 'client got rejection')
           next()
         }),
-        stream
+        clientDuplex
       )
     })
 
   function next() {
     if (--n) return
-    server.close()
+    tcpServer.close()
   }
 })
