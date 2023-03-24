@@ -241,15 +241,11 @@ tape('test handshake', (t) => {
   }
 
   const createServerBoxStream = shs.server(bob, authenticate, app_key, 100)
-  const createClientBoxStream = shs.client(null, app_key, 100)
+  const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(
-    bob.publicKey,
-    hash('alice'),
-    (err, stream) => {
-      if (err) t.fail(err.message ?? err)
-    }
-  )
+  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err, stream) => {
+    if (err) t.fail(err.message ?? err)
+  })
 
   const bobBoxStream = createServerBoxStream((err, stream) => {
     if (err) t.fail(err.message ?? err)

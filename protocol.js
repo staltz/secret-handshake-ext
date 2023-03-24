@@ -28,17 +28,10 @@ module.exports = function protocol(crypto) {
   // client is Alice
   // create the client stream with the public key you expect to connect to.
   function createClientStream(alice, app_key, timeout) {
-    return function getClientStream(bob_pub, seed, cb) {
-      if (typeof seed === 'function') {
-        cb = seed
-        seed = null
-      }
-
-      // alice may be null, e.g. https://github.com/ssbc/ssb-invite/blob/b93918b3e6adcb8dd68674fdbb270b49ff07f2a8/index.js#L219
+    return function getClientStream(bob_pub, cb) {
       let state = crypto.initialize({
         app_key,
         random: createRandom(32),
-        seed,
         local: alice,
         remote: { publicKey: bob_pub },
       })
@@ -161,16 +154,11 @@ module.exports = function protocol(crypto) {
   function createClient(alice, app_key, timeout) {
     const getStream = createClientStream(alice, app_key, timeout)
 
-    return function (bob_pub, seed, cb) {
+    return function (bob_pub, cb) {
       if (!isBuffer(bob_pub, 32)) {
         throw new Error('createClient *must* be passed a public key')
       }
-      if (typeof seed === 'function') {
-        const _cb = seed
-        return getStream(bob_pub, wrapInBoxStream(_cb))
-      } else {
-        return getStream(bob_pub, seed, wrapInBoxStream(cb))
-      }
+      return getStream(bob_pub, wrapInBoxStream(cb))
     }
   }
 

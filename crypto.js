@@ -1,7 +1,6 @@
 const sodium = require('chloride')
 
-// const keypair = sodium.crypto_box_seed_keypair
-const from_seed = sodium.crypto_sign_seed_keypair
+const keypairFromBuf = sodium.crypto_sign_seed_keypair
 const shared = sodium.crypto_scalarmult
 const hash = sodium.crypto_hash_sha256
 const sign = sodium.crypto_sign_detached
@@ -34,15 +33,9 @@ function assert_length(buf, name, length) {
 }
 
 function initialize(state) {
-  if (state.seed) state.local = from_seed(state.seed)
-
-  //TODO: sodium is missing box_seed_keypair. should make PR for that.
-  // mix: sodium-native has this fn https://github.com/sodium-friends/sodium-native
-
-  const _key = from_seed(state.random)
-  // const kx = keypair(random)
-  const kx_pk = curvify_pk(_key.publicKey)
-  const kx_sk = curvify_sk(_key.secretKey)
+  const kx = keypairFromBuf(state.random)
+  const kx_pk = curvify_pk(kx.publicKey)
+  const kx_sk = curvify_sk(kx.secretKey)
 
   state.local = {
     kx_pk: kx_pk,
@@ -183,7 +176,7 @@ function serverCreateAccept(state) {
 }
 
 function toKeys(keys) {
-  if (isBuffer(keys, 32)) return sodium.crypto_sign_seed_keypair(keys)
+  if (isBuffer(keys, 32)) return keypairFromBuf(keys)
   return keys
 }
 
