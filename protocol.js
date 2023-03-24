@@ -17,7 +17,7 @@ function isBuffer(buf, len) {
 function createAbort(shake) {
   return function abort(err, reason) {
     if (err && err !== true) {
-      shake.abort(new Error(reason, { cause: err }))
+      shake.abort(new Error(reason, { cause: err.message ?? err }))
     } else {
       shake.abort(new Error(reason))
     }
