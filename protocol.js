@@ -43,7 +43,7 @@ module.exports = function protocol(crypto) {
         remote: { publicKey: bob_pub },
       })
 
-      const stream = Handshake({ timeout }, cb)
+      const stream = Handshake({ timeout }, cb) // cb called only for errors
       const shake = stream.handshake
       stream.handshake = null
       const abort = createAbort(shake)
@@ -87,7 +87,7 @@ module.exports = function protocol(crypto) {
         // remote: unknown until server receives ClientAuth
       })
 
-      const stream = Handshake({ timeout }, cb)
+      const stream = Handshake({ timeout }, cb) // cb called only for errors
       const shake = stream.handshake
       stream.handshake = null
       const abort = createAbort(shake)
@@ -128,7 +128,7 @@ module.exports = function protocol(crypto) {
 
   // wrap the above into an actual handshake + encrypted session
 
-  function secure(cb) {
+  function wrapInBoxStream(cb) {
     return function (err, stream, state) {
       if (err) return cb(err)
 
@@ -165,8 +165,12 @@ module.exports = function protocol(crypto) {
       if (!isBuffer(bob_pub, 32)) {
         throw new Error('createClient *must* be passed a public key')
       }
-      if (typeof seed === 'function') return getStream(bob_pub, secure(seed))
-      else return getStream(bob_pub, seed, secure(cb))
+      if (typeof seed === 'function') {
+        const _cb = seed
+        return getStream(bob_pub, wrapInBoxStream(_cb))
+      } else {
+        return getStream(bob_pub, seed, wrapInBoxStream(cb))
+      }
     }
   }
 
@@ -174,7 +178,7 @@ module.exports = function protocol(crypto) {
     const getStream = createServerStream(bob, authorize, app_key, timeout)
 
     return function (cb) {
-      return getStream(secure(cb))
+      return getStream(wrapInBoxStream(cb))
     }
   }
 
