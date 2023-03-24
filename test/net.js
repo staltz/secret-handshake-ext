@@ -75,13 +75,17 @@ module.exports = function createNode(opts = {}) {
       const clientDuplex = toPull.duplex(net.connect(addr.port, addr.host))
 
       if (cb) {
-        pull(clientDuplex, createClientBoxStream(addr.key, cb), clientDuplex)
+        pull(
+          clientDuplex,
+          createClientBoxStream(addr.key, addr.extra, cb),
+          clientDuplex
+        )
       } else {
         const defer = Defer()
 
         pull(
           clientDuplex,
-          createClientBoxStream(addr.key, (err, stream) => {
+          createClientBoxStream(addr.key, addr.extra, (err, stream) => {
             if (err) {
               defer.resolve({
                 source: pull.error(err),

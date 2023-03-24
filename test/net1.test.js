@@ -14,7 +14,7 @@ const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const app_key = hash('app_key')
 
 tape('test with TCP and always-accepting server', (t) => {
-  function accept(pub, cb) {
+  function accept(pub, extra, cb) {
     cb(null, true)
   }
 
@@ -41,7 +41,7 @@ tape('test with TCP and always-accepting server', (t) => {
       t.pass('client connecting')
       pull(
         clientDuplex,
-        createClientBoxStream(bob.publicKey, (err, unboxedStream) => {
+        createClientBoxStream(bob.publicKey, null, (err, unboxedStream) => {
           t.pass('client connected')
           pull(
             pull.values([Buffer.from('HELLO')]),
@@ -63,7 +63,7 @@ tape('test with TCP and always-rejecting server', (t) => {
   let n = 2
   t.plan(4)
 
-  function reject(pub, cb) {
+  function reject(pub, extra, cb) {
     cb(null, false)
   }
 
@@ -91,7 +91,7 @@ tape('test with TCP and always-rejecting server', (t) => {
       t.pass('client connecting')
       pull(
         clientDuplex,
-        createClientBoxStream(bob.publicKey, (err) => {
+        createClientBoxStream(bob.publicKey, null, (err) => {
           t.match(err.message, /does not wish to talk/, 'client got rejection')
           next()
         }),
@@ -100,7 +100,109 @@ tape('test with TCP and always-rejecting server', (t) => {
     })
 
   function next() {
-    if (--n) return
+    if (--n > 0) return
+    tcpServer.close()
+  }
+})
+
+tape('test with TCP and correct extra token', (t) => {
+  const TOKEN =
+    'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
+
+  function auth(pub, extra, cb) {
+    const accepted = extra?.equals(Buffer.from(TOKEN, 'hex'))
+    cb(null, !!accepted)
+  }
+
+  const createServerBoxStream = shs.createServer(bob, auth, app_key, 100)
+  const createClientBoxStream = shs.createClient(alice, app_key, 100)
+
+  const tcpServer = net
+    .createServer((stream) => {
+      const serverDuplex = toPull.duplex(stream)
+
+      pull(
+        serverDuplex,
+        createServerBoxStream((err, stream) => {
+          t.pass('server connected')
+          pull(stream, stream) // echo
+        }),
+        serverDuplex
+      )
+    })
+    .listen(() => {
+      const port = tcpServer.address().port
+      const clientDuplex = toPull.duplex(net.connect(port))
+
+      t.pass('client connecting')
+      const token = Buffer.from(TOKEN, 'hex')
+      pull(
+        clientDuplex,
+        createClientBoxStream(bob.publicKey, token, (err, stream) => {
+          t.pass('client connected')
+          pull(
+            pull.values([Buffer.from('HELLO')]),
+            stream,
+            pull.collect((err, data) => {
+              t.error(err, 'no error')
+              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
+              tcpServer.close()
+              t.end()
+            })
+          )
+        }),
+        clientDuplex
+      )
+    })
+})
+
+tape('test with TCP and wrong extra token', (t) => {
+  let n = 2
+  t.plan(4)
+
+  const TOKEN =
+    'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
+
+  function auth(pub, extra, cb) {
+    const accepted = extra?.equals(Buffer.from(TOKEN, 'hex'))
+    cb(null, !!accepted)
+  }
+
+  const createServerBoxStream = shs.createServer(bob, auth, app_key, 100)
+  const createClientBoxStream = shs.createClient(alice, app_key, 100)
+
+  const tcpServer = net
+    .createServer((stream) => {
+      const serverDuplex = toPull.duplex(stream)
+
+      pull(
+        serverDuplex,
+        createServerBoxStream((err, stream) => {
+          t.pass('server got connection request')
+          t.match(err.message, /did not authorize/, 'server rejects')
+          next()
+        }),
+        serverDuplex
+      )
+    })
+    .listen(() => {
+      const port = tcpServer.address().port
+      const clientDuplex = toPull.duplex(net.connect(port))
+
+      t.pass('client connecting')
+      const wrongToken = Buffer.alloc(32, 7)
+      pull(
+        clientDuplex,
+        createClientBoxStream(bob.publicKey, wrongToken, (err) => {
+          t.match(err.message, /does not wish to talk/, 'client got rejection')
+          next()
+        }),
+        clientDuplex
+      )
+    })
+
+  function next() {
+    if (--n > 0) return
     tcpServer.close()
   }
 })

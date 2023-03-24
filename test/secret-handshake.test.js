@@ -16,18 +16,18 @@ const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const wally = cl.crypto_sign_seed_keypair(hash('wally'))
 const app_key = hash('app_key')
 
-function unauthorized(_, cb) {
+function unauthorized(pubkey, extra, cb) {
   cb(null, false)
 }
 
-function authorized(_, cb) {
+function authorized(pubkey, extra, cb) {
   cb()
 }
 
 tape('test handshake and box-stream', (t) => {
   const random = Math.random()
 
-  function authenticate(publicKey, cb) {
+  function authenticate(publicKey, extra, cb) {
     t.deepEqual(publicKey, alice.publicKey)
     if (deepEqual(publicKey, alice.publicKey)) cb(null, { okay: true, random })
     else cb(new Error('unauthorized'))
@@ -36,19 +36,23 @@ tape('test handshake and box-stream', (t) => {
   const createServerBoxStream = shs.server(bob, authenticate, app_key, 100)
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err, stream) => {
-    if (err) t.fail(err.message ?? err)
+  const aliceBoxStream = createClientBoxStream(
+    bob.publicKey,
+    null,
+    (err, stream) => {
+      if (err) t.fail(err.message ?? err)
 
-    pull(
-      pull.values([Buffer.from('hello there')]),
-      stream,
-      pull.collect((err, payload) => {
-        if (err) t.fail(err.message ?? err)
-        t.equal(payload.toString(), 'hello there')
-        t.end()
-      })
-    )
-  })
+      pull(
+        pull.values([Buffer.from('hello there')]),
+        stream,
+        pull.collect((err, payload) => {
+          if (err) t.fail(err.message ?? err)
+          t.equal(payload.toString(), 'hello there')
+          t.end()
+        })
+      )
+    }
+  )
 
   const bobBoxStream = createServerBoxStream((err, stream) => {
     if (err) t.fail(err.message ?? err)
@@ -73,7 +77,7 @@ function bitflipTest(t, test) {
   const createServerBoxStream = shs.server(bob, authenticate, app_key, 100)
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err) => {
+  const aliceBoxStream = createClientBoxStream(bob.publicKey, null, (err) => {
     t.ok(err, 'Alice errored')
     if (++errs === 2) t.end()
   })
@@ -116,7 +120,7 @@ tape('test error cb when client is not authorized', (t) => {
   const createServerBoxStream = shs.server(bob, unauthorized, app_key, 100)
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err) => {
+  const aliceBoxStream = createClientBoxStream(bob.publicKey, null, (err) => {
     t.ok(err, 'client connection error')
     t.match(err.message, /phase 4/, 'client saw phase 4 error')
     if (++errs === 2) t.end()
@@ -137,7 +141,7 @@ tape('test error cb when client uses wrong server key', (t) => {
   const createServerBoxStream = shs.server(bob, unauthorized, app_key, 100)
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(wally.publicKey, (err) => {
+  const aliceBoxStream = createClientBoxStream(wally.publicKey, null, (err) => {
     t.ok(err, 'client connection error')
     t.match(err.message, /phase 3/, 'client saw phase 3 error')
     if (++errs === 2) t.end()
@@ -159,7 +163,7 @@ tape('test error cb when client uses random server key', (t) => {
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
   const randomKey = crypto.randomBytes(32)
-  const aliceBoxStream = createClientBoxStream(randomKey, (err) => {
+  const aliceBoxStream = createClientBoxStream(randomKey, null, (err) => {
     t.ok(err, 'client connection error')
     t.match(err.message, /phase 2/, 'client saw phase 2 error')
     if (++errs === 2) t.end()
@@ -177,11 +181,15 @@ tape('test error cb when client uses random server key', (t) => {
 tape('client timeout error if there is no response', function (t) {
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err, stream) => {
-    t.match(err.message, /shs\.client.+phase 1/, 'client saw phase 1 error')
-    t.ok(err)
-    t.end()
-  })
+  const aliceBoxStream = createClientBoxStream(
+    bob.publicKey,
+    null,
+    (err, stream) => {
+      t.match(err.message, /shs\.client.+phase 1/, 'client saw phase 1 error')
+      t.ok(err)
+      t.end()
+    }
+  )
 
   pull(Hang(), aliceBoxStream)
   // do nothing, so alice should timeout
@@ -214,10 +222,14 @@ tape('unauthorized connection must cb once', (t) => {
   const createClientBoxStream = shs.client(alice, app_key, 100)
   const createServerBoxStream = shs.server(bob, authorized, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err, stream) => {
-    t.ok(err, 'client connect should fail')
-    next()
-  })
+  const aliceBoxStream = createClientBoxStream(
+    bob.publicKey,
+    null,
+    (err, stream) => {
+      t.ok(err, 'client connect should fail')
+      next()
+    }
+  )
 
   const bobBoxStream = createServerBoxStream((err, stream) => {
     t.ok(err, 'server connect should fail')
@@ -235,7 +247,7 @@ tape('unauthorized connection must cb once', (t) => {
 tape('test handshake', (t) => {
   const random = Math.random()
 
-  function authenticate(publicKey, cb) {
+  function authenticate(publicKey, extra, cb) {
     t.deepEqual(publicKey, alice.publicKey)
     cb(null, { okay: true, random })
   }
@@ -243,9 +255,13 @@ tape('test handshake', (t) => {
   const createServerBoxStream = shs.server(bob, authenticate, app_key, 100)
   const createClientBoxStream = shs.client(alice, app_key, 100)
 
-  const aliceBoxStream = createClientBoxStream(bob.publicKey, (err, stream) => {
-    if (err) t.fail(err.message ?? err)
-  })
+  const aliceBoxStream = createClientBoxStream(
+    bob.publicKey,
+    null,
+    (err, stream) => {
+      if (err) t.fail(err.message ?? err)
+    }
+  )
 
   const bobBoxStream = createServerBoxStream((err, stream) => {
     if (err) t.fail(err.message ?? err)

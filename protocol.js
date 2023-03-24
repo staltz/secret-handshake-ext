@@ -24,14 +24,17 @@ function createAbort(shake) {
   }
 }
 
+const zero32 = Buffer.alloc(32, 0)
+
 module.exports = function protocol(crypto) {
   // client is Alice
   // create the client stream with the public key you expect to connect to.
   function createClientStream(alice, app_key, timeout) {
-    return function getClientStream(bob_pub, cb) {
+    return function getClientStream(bob_pub, extra_token, cb) {
       let state = crypto.initialize({
         app_key,
         random: createRandom(32),
+        extra: extra_token ?? zero32,
         local: alice,
         remote: { publicKey: bob_pub },
       })
@@ -103,7 +106,7 @@ module.exports = function protocol(crypto) {
           }
 
           // phase 4: server decides if they want client to connect with them
-          authorize(state.remote.publicKey, (err, auth) => {
+          authorize(state.remote.publicKey, state.extra, (err, auth) => {
             if (err) return abort(err, errors.serverErrorOnAuthorization)
             if (!auth) return abort(null, errors.clientUnauthorized)
             state.auth = auth
@@ -152,21 +155,24 @@ module.exports = function protocol(crypto) {
   }
 
   function createClient(alice, app_key, timeout) {
-    const getStream = createClientStream(alice, app_key, timeout)
+    const getBoxStream = createClientStream(alice, app_key, timeout)
 
-    return function (bob_pub, cb) {
+    return function createClientBoxStream(bob_pub, extra_token, cb) {
       if (!isBuffer(bob_pub, 32)) {
         throw new Error('createClient *must* be passed a public key')
       }
-      return getStream(bob_pub, wrapInBoxStream(cb))
+      if (extra_token && !isBuffer(extra_token, 32)) {
+        throw new Error('createClient extra token *must* have 32 bytes')
+      }
+      return getBoxStream(bob_pub, extra_token, wrapInBoxStream(cb))
     }
   }
 
   function createServer(bob, authorize, app_key, timeout) {
-    const getStream = createServerStream(bob, authorize, app_key, timeout)
+    const getBoxStream = createServerStream(bob, authorize, app_key, timeout)
 
-    return function (cb) {
-      return getStream(wrapInBoxStream(cb))
+    return function createServerBoxStream(cb) {
+      return getBoxStream(wrapInBoxStream(cb))
     }
   }
 

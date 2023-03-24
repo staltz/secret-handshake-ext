@@ -15,7 +15,7 @@ const app_key = crypto.randomBytes(32)
 const bobNode = netshs({
   keys: bob,
   appKey: app_key,
-  authenticate(pub, cb) {
+  authenticate(pub, extra, cb) {
     cb(null, true) // accept anyone
   },
   timeout: 200,
@@ -100,7 +100,7 @@ tape('test net.js, correct, stream directly', (t) => {
 const bobNode2 = netshs({
   keys: bob,
   appKey: app_key,
-  authenticate(pub, cb) {
+  authenticate(pub, extra, cb) {
     cb() // reject with no reason
   },
 })

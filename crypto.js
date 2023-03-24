@@ -16,9 +16,10 @@ const concat = Buffer.concat
 const isBuffer = Buffer.isBuffer
 
 const nonce = Buffer.alloc(24, 0)
+const zero32 = Buffer.alloc(32, 0)
 
 const challenge_length = 64
-const client_auth_length = 16 + 32 + 64
+const client_auth_length = 16 + 32 + 64 + 32
 const server_auth_length = 16 + 64
 const mac_length = 16
 
@@ -40,6 +41,7 @@ function initialize(state) {
   state.local = {
     kx_pk: kx_pk,
     kx_sk: kx_sk,
+    extra: state.extra,
     publicKey: state.local.publicKey,
     secretKey: state.local.secretKey,
     app_mac: auth(kx_pk, state.app_key),
@@ -116,7 +118,7 @@ function clientVerifyChallenge(state, challenge) {
   const signed = concat([state.app_key, state.remote.publicKey, state.shash])
   const sig = sign(signed, state.local.secretKey)
 
-  state.local.hello = Buffer.concat([sig, state.local.publicKey])
+  state.local.hello = Buffer.concat([sig, state.local.publicKey, state.extra])
   return state
 }
 
@@ -154,11 +156,13 @@ function serverVerifyAuth(state, data) {
 
   const sig = state.remote.hello.slice(0, 64)
   const publicKey = state.remote.hello.slice(64, 96)
+  const extra = state.remote.hello.slice(96, 128)
 
   const signed = concat([state.app_key, state.local.publicKey, state.shash])
   if (!verify(sig, signed, publicKey)) return null
 
   state.remote.publicKey = publicKey
+  state.extra = extra.equals(zero32) ? null : extra
   // shared key between my local ephemeral key + remote public
   const b_alice = shared(state.local.kx_sk, curvify_pk(state.remote.publicKey))
   state.b_alice = b_alice
