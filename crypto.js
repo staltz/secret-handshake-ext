@@ -1,16 +1,16 @@
-const sodium = require('chloride')
-
-const keypairFromBuf = sodium.crypto_sign_seed_keypair
-const shared = sodium.crypto_scalarmult
-const hash = sodium.crypto_hash_sha256
-const sign = sodium.crypto_sign_detached
-const verify = sodium.crypto_sign_verify_detached
-const auth = sodium.crypto_auth
-const verify_auth = sodium.crypto_auth_verify
-const curvify_pk = sodium.crypto_sign_ed25519_pk_to_curve25519
-const curvify_sk = sodium.crypto_sign_ed25519_sk_to_curve25519
-const box = sodium.crypto_secretbox_easy
-const unbox = sodium.crypto_secretbox_open_easy
+const {
+  keypairFromBuf,
+  curvify_pk,
+  curvify_sk,
+  hash,
+  auth,
+  verify_auth,
+  shared,
+  sign,
+  verify,
+  box,
+  unbox,
+} = require('./chloride')
 
 const concat = Buffer.concat
 const isBuffer = Buffer.isBuffer
