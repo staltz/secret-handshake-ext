@@ -7,18 +7,29 @@
     "type": "git",
     "url": "git://github.com/staltz/secret-handshake-ext.git"
   },
+  "main": "lib/index.js",
   "files": [
-    "*.js"
+    "lib/**/*"
   ],
+  "engines": {
+    "node": ">=16"
+  },
+  "exports": {
+    ".": {
+      "require": "./lib/index.js"
+    },
+    "./crypto": {
+      "require": "./lib/crypto.js"
+    }
+  },
   "scripts": {
-    "prepublishOnly": "npm ls && npm test",
-    "test": "npm-run-all test:original test:shs1-test",
+    "test": "npm-run-all test:original",
     "test:original": "tape test/*.test.js | tap-arc --bail",
     "test:shs1-test": "npm-run-all test:shs1-test:*",
     "test:shs1-test:server": "shs1testserver test/shs1-test/server.js",
     "test:shs1-test:client": "shs1testclient test/shs1-test/client.js",
-    "format-code": "prettier --write \"*.js\" \"(test|compat|indexes|operators)/*.js\"",
-    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"(test|compat|indexes|operators)/*.js\"",
+    "format-code": "prettier --write \"*.js\" \"(test|lib)/*.js\"",
+    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"(test|lib)/*.js\"",
     "coverage": "c8 --reporter=lcov npm run test"
   },
   "dependencies": {
