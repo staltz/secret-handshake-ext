@@ -1,11 +1,11 @@
 {
   "name": "secret-handshake",
   "description": "a simple and highly private secure-channel protocol",
-  "version": "1.1.21",
-  "homepage": "https://github.com/auditdrivencrypto/secret-handshake",
+  "version": "0.0.1",
+  "homepage": "https://github.com/staltz/secret-handshake-ext",
   "repository": {
     "type": "git",
-    "url": "git://github.com/auditdrivencrypto/secret-handshake.git"
+    "url": "git://github.com/staltz/secret-handshake-ext.git"
   },
   "files": [
     "*.js"
@@ -49,5 +49,8 @@
     }
   },
   "author": "Dominic Tarr <dominic.tarr@gmail.com> (http://dominictarr.com)",
+  "contributors": [
+    "Andre 'Staltz' Medeiros <contact@staltz.com>"
+  ],
   "license": "MIT"
 }
