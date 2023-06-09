@@ -42,8 +42,8 @@ The API differs from `secret-handshake` only in (server's )`authorize()` and
 ```
 
 This module also contains a multiserver plugin at
-`secret-handshake-ext/lib/multiserver-plugin` and a secret-stack plugin at
-`secret-handshake-ext/lib/secret-stack-plugin` (which wraps the multiserver
+`secret-handshake-ext/multiserver` and a secret-stack plugin at
+`secret-handshake-ext/secret-stack` (which wraps the multiserver
 plugin).
 
 ## License

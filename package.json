@@ -20,6 +20,12 @@
     },
     "./crypto": {
       "require": "./lib/crypto.js"
+    },
+    "./multiserver": {
+      "require": "./lib/multiserver-plugin.js"
+    },
+    "./secret-stack": {
+      "require": "./lib/secret-stack-plugin.js"
     }
   },
   "scripts": {
