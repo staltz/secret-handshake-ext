@@ -274,7 +274,7 @@ tape('test handshake', (t) => {
 })
 
 tape('toKeys', (t) => {
-  t.deepEqual(shs.toKeys(hash('alice')), alice)
-  t.deepEqual(shs.toKeys(alice), alice)
+  t.deepEqual(shs.toKeypair(hash('alice')), alice)
+  t.deepEqual(shs.toKeypair(alice), alice)
   t.end()
 })
