@@ -1,6 +1,6 @@
 {
-  "name": "secret-handshake",
-  "description": "a simple and highly private secure-channel protocol",
+  "name": "secret-handshake-ext",
+  "description": "A simple and highly private secure-channel protocol",
   "version": "0.0.1",
   "homepage": "https://github.com/staltz/secret-handshake-ext",
   "repository": {
@@ -36,8 +36,8 @@
   "dependencies": {
     "bs58": "^5.0.0",
     "pull-box-stream": "^1.0.13",
-    "pull-handshake": "^1.1.1",
-    "pull-stream": "^3.4.5",
+    "pull-handshake": "^1.1.4",
+    "pull-stream": "^3.7.0",
     "sodium-universal": "^4.0.0"
   },
   "devDependencies": {
@@ -64,9 +64,9 @@
       "pre-commit": "npm run format-code-staged"
     }
   },
-  "author": "Dominic Tarr <dominic.tarr@gmail.com> (http://dominictarr.com)",
+  "author": "Andre 'Staltz' Medeiros <contact@staltz.com>",
   "contributors": [
-    "Andre 'Staltz' Medeiros <contact@staltz.com>"
+    "Dominic Tarr <dominic.tarr@gmail.com> (http://dominictarr.com)"
   ],
   "license": "MIT"
 }
