@@ -4,8 +4,8 @@
 protocol, with an extra 32 bytes payload that allows the server to recognize the
 client based on a pre-agreed token.
 
-The API differs from `secret-handshake` only in `createClientBoxStream()`, now
-receiving a 32-byte "extra" buffer.
+The API differs from `secret-handshake` only in (server's )`authorize()` and
+(client's) `createClientBoxStream()`, now receiving a 32-byte "extra" buffer.
 
 ```diff
 -const SHS = require('secret-handshake')
