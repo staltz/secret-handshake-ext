@@ -1,4 +1,5 @@
-const tape = require('tape')
+const test = require('node:test')
+const assert = require('node:assert')
 const cl = require('chloride')
 const base58 = require('bs58')
 const b4a = require('b4a')
@@ -12,25 +13,23 @@ const alice = cl.crypto_sign_seed_keypair(hash('alice'))
 const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const appKey = hash('app_key')
 
-tape('multiserver-plugin name and create', (t) => {
+test('multiserver-plugin name and create', (t) => {
   const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
 
-  t.equals(plugin.name, 'shse')
-  t.equals(typeof plugin.create, 'function')
-  t.end()
+  assert.equal(plugin.name, 'shse')
+  assert.equal(typeof plugin.create, 'function')
 })
 
-tape('multiserver-plugin stringify', (t) => {
+test('multiserver-plugin stringify', (t) => {
   const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
-  t.equals(
+  assert.equal(
     plugin.stringify(),
     `shse:${base58.encode(alice.publicKey)}`,
     'plugin stringify'
   )
-  t.end()
 })
 
-tape('multiserver-plugin parse', (t) => {
+test('multiserver-plugin parse', (t) => {
   const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
 
   const buf1 = hash('foo')
@@ -38,21 +37,20 @@ tape('multiserver-plugin parse', (t) => {
   const pubkey = base58.encode(buf1)
   const extra = base58.encode(buf2)
 
-  t.deepEquals(
+  assert.deepEqual(
     plugin.parse(`shse:${pubkey}`),
     { pubkey: buf1, extra: null },
     'parse just pubkey'
   )
-  t.deepEquals(
+  assert.deepEqual(
     plugin.parse(`shse:${pubkey}:${extra}`),
     { pubkey: buf1, extra: buf2 },
     'parse pubkey+extra'
   )
-  t.deepEquals(plugin.parse(`shse:notgreat`), null, 'parse invalid pubkey')
-  t.deepEquals(
+  assert.deepEqual(plugin.parse(`shse:notgreat`), null, 'parse invalid pubkey')
+  assert.deepEqual(
     plugin.parse(`shse:${pubkey}:notgreat`),
     null,
     'parse invalid extra'
   )
-  t.end()
 })

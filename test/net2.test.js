@@ -1,8 +1,9 @@
-const tape = require('tape')
-const crypto = require('crypto')
-const pull = require('pull-stream')
+const test = require('node:test')
+const assert = require('node:assert')
+const crypto = require('node:crypto')
 const b4a = require('b4a')
 const cl = require('chloride')
+const pull = require('pull-stream')
 const netshs = require('./net')
 
 function hash(str) {
@@ -31,13 +32,14 @@ const aliceNode = netshs({
 })
 const PORT = 45034
 
-tape('test net.js, correct, callback', (t) => {
+test('test net.js, correct, callback', (t, done) => {
   const tcpServer = bobNode
     .createServer((stream) => {
-      t.true(
+      assert.equal(
         b4a.isBuffer(stream.remote) &&
           b4a.isBuffer(alice.publicKey) &&
           stream.remote.equals(alice.publicKey),
+        true,
         "client's ID is Alice's ID"
       )
 
@@ -48,11 +50,12 @@ tape('test net.js, correct, callback', (t) => {
       aliceNode.connect(
         { host: 'localhost', port, key: bob.publicKey },
         (err, stream) => {
-          if (err) t.fail(err.message ?? err)
-          t.true(
+          assert.ifError(err)
+          assert.equal(
             b4a.isBuffer(stream.remote) &&
               b4a.isBuffer(bob.publicKey) &&
               stream.remote.equals(bob.publicKey),
+            true,
             "server's ID is Bob's ID"
           )
 
@@ -60,10 +63,9 @@ tape('test net.js, correct, callback', (t) => {
             pull.values([b4a.from('HELLO')]),
             stream,
             pull.collect((err, data) => {
-              if (err) t.fail(err.message ?? err)
-              t.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
-              tcpServer.close()
-              t.end()
+              assert.ifError(err)
+              assert.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
+              tcpServer.close(done)
             })
           )
         }
@@ -71,13 +73,14 @@ tape('test net.js, correct, callback', (t) => {
     })
 })
 
-tape('test net.js, correct, stream directly', (t) => {
+test('test net.js, correct, stream directly', (t, done) => {
   const tcpServer = bobNode
     .createServer((stream) => {
-      t.true(
+      assert.equal(
         b4a.isBuffer(stream.remote) &&
           b4a.isBuffer(alice.publicKey) &&
           stream.remote.equals(alice.publicKey),
+        true,
         "client's ID is Alice's ID"
       )
 
@@ -89,10 +92,9 @@ tape('test net.js, correct, stream directly', (t) => {
         pull.values([b4a.from('HELLO')]),
         aliceNode.connect({ port, key: bob.publicKey }),
         pull.collect((err, data) => {
-          if (err) t.fail(err.message ?? err)
-          t.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
-          tcpServer.close()
-          t.end()
+          assert.ifError(err)
+          assert.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
+          tcpServer.close(done)
         })
       )
     })
@@ -106,51 +108,49 @@ const bobNode2 = netshs({
   },
 })
 
-tape('test net, error, callback', (t) => {
+test('test net, error, callback', (t, done) => {
   const tcpServer = bobNode2
     .createServer((stream) => {
-      t.fail('this should never be called')
+      done(new Error('this should never be called'))
     })
     .listen(() => {
       const port = tcpServer.address().port
-      t.pass('client connect')
+      // t.pass('client connect')
       aliceNode.connect({ port, key: bob.publicKey }, (err) => {
-        t.ok(err, 'client got connection error')
-        t.match(
+        assert.ok(err, 'client got connection error')
+        assert.match(
           err.message,
           /server does not wish to talk to us/,
           'client got rejection'
         )
-        t.end()
-        tcpServer.close()
+        tcpServer.close(done)
       })
     })
 })
 
-tape('test net, error, stream', (t) => {
+test('test net, error, stream', (t, done) => {
   const tcpServer = bobNode2
     .createServer((stream) => {
-      t.fail('this should never be called')
+      done(new Error('this should never be called'))
     })
     .listen(() => {
       const port = tcpServer.address().port
       pull(
         aliceNode.connect({ port, key: bob.publicKey }),
         pull.collect((err, ary) => {
-          t.ok(err, 'client got connection error')
-          t.match(
+          assert.ok(err, 'client got connection error')
+          assert.match(
             err.message,
             /server does not wish to talk to us/,
             'client got rejection'
           )
-          t.end()
-          tcpServer.close()
+          tcpServer.close(done)
         })
       )
     })
 })
 
-tape('test net, create seed cap', (t) => {
+test('test net, create seed cap', (t, done) => {
   const seed = crypto.randomBytes(32)
   const keypair = cl.crypto_sign_seed_keypair(seed)
 
@@ -163,16 +163,16 @@ tape('test net, create seed cap', (t) => {
 
   const server = bobNode
     .createServer((stream) => {
-      t.true(
+      assert.equal(
         b4a.isBuffer(stream.remote) &&
           b4a.isBuffer(keypair.publicKey) &&
           stream.remote.equals(keypair.publicKey),
+        true,
         "client's ID is correct"
       )
 
       stream.source(true, () => {})
-      server.close()
-      t.end()
+      server.close(done)
     })
     .listen(() => {
       const port = server.address().port

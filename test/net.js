@@ -1,11 +1,11 @@
 // This file is a precursor to multiserver with shs plugin
 
-const net = require('net')
+const net = require('node:net')
+const b4a = require('b4a')
 const sodium = require('chloride')
-const toPull = require('stream-to-pull-stream')
 const pull = require('pull-stream')
 const Defer = require('pull-defer/duplex')
-const b4a = require('b4a')
+const toPull = require('stream-to-pull-stream')
 const shs = require('../')
 
 function assertAppKey(opts) {
