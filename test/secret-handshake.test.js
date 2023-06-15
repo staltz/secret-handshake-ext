@@ -4,11 +4,12 @@ const cl = require('chloride')
 const bitflipper = require('pull-bitflipper')
 const crypto = require('crypto')
 const Hang = require('pull-hang')
+const b4a = require('b4a')
 const pull = require('pull-stream')
 const shs = require('../')
 
 function hash(str) {
-  return cl.crypto_hash_sha256(Buffer.from(str))
+  return cl.crypto_hash_sha256(b4a.from(str))
 }
 
 const alice = cl.crypto_sign_seed_keypair(hash('alice'))
@@ -43,7 +44,7 @@ tape('test handshake and box-stream', (t) => {
       if (err) t.fail(err.message ?? err)
 
       pull(
-        pull.values([Buffer.from('hello there')]),
+        pull.values([b4a.from('hello there')]),
         stream,
         pull.collect((err, payload) => {
           if (err) t.fail(err.message ?? err)
@@ -271,10 +272,4 @@ tape('test handshake', (t) => {
   })
 
   pull(aliceBoxStream, bobBoxStream, aliceBoxStream)
-})
-
-tape('toKeys', (t) => {
-  t.deepEqual(shs.toKeypair(hash('alice')), alice)
-  t.deepEqual(shs.toKeypair(alice), alice)
-  t.end()
 })

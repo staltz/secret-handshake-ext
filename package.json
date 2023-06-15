@@ -40,13 +40,15 @@
     "coverage": "c8 --reporter=lcov npm run test"
   },
   "dependencies": {
-    "bs58": "^5.0.0",
-    "pull-box-stream": "^1.0.13",
-    "pull-handshake": "^1.1.4",
-    "pull-stream": "^3.7.0",
-    "sodium-universal": "^4.0.0"
+    "b4a": "~1.6.4",
+    "bs58": "~5.0.0",
+    "pull-box-stream": "~1.0.13",
+    "pull-handshake": "~1.1.4",
+    "pull-stream": "~3.7.0",
+    "sodium-universal": "~4.0.0"
   },
   "devDependencies": {
+    "@types/b4a": "^1.6.0",
     "@types/node": "^20.2.5",
     "c8": "^7.11.0",
     "chloride": "^2.4.1",

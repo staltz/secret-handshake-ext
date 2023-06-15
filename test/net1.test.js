@@ -1,12 +1,13 @@
 const tape = require('tape')
 const net = require('net')
 const pull = require('pull-stream')
+const b4a = require('b4a')
 const toPull = require('stream-to-pull-stream')
 const cl = require('chloride')
 const shs = require('../')
 
 function hash(str) {
-  return cl.crypto_hash_sha256(Buffer.from(str))
+  return cl.crypto_hash_sha256(b4a.from(str))
 }
 
 const alice = cl.crypto_sign_seed_keypair(hash('alice'))
@@ -44,11 +45,11 @@ tape('test with TCP and always-accepting server', (t) => {
         createClientBoxStream(bob.publicKey, null, (err, unboxedStream) => {
           t.pass('client connected')
           pull(
-            pull.values([Buffer.from('HELLO')]),
+            pull.values([b4a.from('HELLO')]),
             unboxedStream,
             pull.collect((err, data) => {
               t.error(err, 'no error')
-              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
+              t.deepEqual(b4a.concat(data), b4a.from('HELLO'))
               tcpServer.close()
               t.end()
             })
@@ -110,7 +111,7 @@ tape('test with TCP and correct extra token', (t) => {
     'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
 
   function auth(pub, extra, cb) {
-    const accepted = extra?.equals(Buffer.from(TOKEN, 'hex'))
+    const accepted = extra?.equals(b4a.from(TOKEN, 'hex'))
     cb(null, !!accepted)
   }
 
@@ -135,17 +136,17 @@ tape('test with TCP and correct extra token', (t) => {
       const clientDuplex = toPull.duplex(net.connect(port))
 
       t.pass('client connecting')
-      const token = Buffer.from(TOKEN, 'hex')
+      const token = b4a.from(TOKEN, 'hex')
       pull(
         clientDuplex,
         createClientBoxStream(bob.publicKey, token, (err, stream) => {
           t.pass('client connected')
           pull(
-            pull.values([Buffer.from('HELLO')]),
+            pull.values([b4a.from('HELLO')]),
             stream,
             pull.collect((err, data) => {
               t.error(err, 'no error')
-              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'))
+              t.deepEqual(b4a.concat(data), b4a.from('HELLO'))
               tcpServer.close()
               t.end()
             })
@@ -164,7 +165,7 @@ tape('test with TCP and wrong extra token', (t) => {
     'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
 
   function auth(pub, extra, cb) {
-    const accepted = extra?.equals(Buffer.from(TOKEN, 'hex'))
+    const accepted = extra?.equals(b4a.from(TOKEN, 'hex'))
     cb(null, !!accepted)
   }
 
@@ -190,7 +191,7 @@ tape('test with TCP and wrong extra token', (t) => {
       const clientDuplex = toPull.duplex(net.connect(port))
 
       t.pass('client connecting')
-      const wrongToken = Buffer.alloc(32, 7)
+      const wrongToken = b4a.alloc(32, 7)
       pull(
         clientDuplex,
         createClientBoxStream(bob.publicKey, wrongToken, (err) => {

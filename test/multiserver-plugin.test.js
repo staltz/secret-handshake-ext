@@ -1,10 +1,11 @@
 const tape = require('tape')
 const cl = require('chloride')
 const base58 = require('bs58')
+const b4a = require('b4a')
 const shsePlugin = require('../lib/multiserver-plugin')
 
 function hash(str) {
-  return cl.crypto_hash_sha256(Buffer.from(str))
+  return cl.crypto_hash_sha256(b4a.from(str))
 }
 
 const alice = cl.crypto_sign_seed_keypair(hash('alice'))
@@ -12,7 +13,7 @@ const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const appKey = hash('app_key')
 
 tape('multiserver-plugin name and create', (t) => {
-  const plugin = shsePlugin({ keys: alice, appKey, timeout: 10e3 })
+  const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
 
   t.equals(plugin.name, 'shse')
   t.equals(typeof plugin.create, 'function')
@@ -20,7 +21,7 @@ tape('multiserver-plugin name and create', (t) => {
 })
 
 tape('multiserver-plugin stringify', (t) => {
-  const plugin = shsePlugin({ keys: alice, appKey, timeout: 10e3 })
+  const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
   t.equals(
     plugin.stringify(),
     `shse:${base58.encode(alice.publicKey)}`,
@@ -30,7 +31,7 @@ tape('multiserver-plugin stringify', (t) => {
 })
 
 tape('multiserver-plugin parse', (t) => {
-  const plugin = shsePlugin({ keys: alice, appKey, timeout: 10e3 })
+  const plugin = shsePlugin({ keypair: alice, appKey, timeout: 10e3 })
 
   const buf1 = hash('foo')
   const buf2 = hash('bar')

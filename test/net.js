@@ -5,22 +5,27 @@ const sodium = require('chloride')
 const toPull = require('stream-to-pull-stream')
 const pull = require('pull-stream')
 const Defer = require('pull-defer/duplex')
+const b4a = require('b4a')
 const shs = require('../')
 
-const isBuffer = Buffer.isBuffer
-
 function assertAppKey(opts) {
-  if (!isBuffer(opts.appKey)) throw new Error('appKey must be provided')
+  if (!b4a.isBuffer(opts.appKey)) throw new Error('appKey must be provided')
 }
 
-function assertKeys(keys) {
-  if (!(keys && isBuffer(keys.publicKey) && isBuffer(keys.secretKey))) {
-    throw new Error('opts.keys = ed25519 key pair *must* be provided.')
+function assertKeypair(keypair) {
+  if (
+    !(
+      keypair &&
+      b4a.isBuffer(keypair.publicKey) &&
+      b4a.isBuffer(keypair.secretKey)
+    )
+  ) {
+    throw new Error('opts.keypair = ed25519 key pair *must* be provided.')
   }
 }
 
 function assertAddr(addr) {
-  if (!isBuffer(addr.key))
+  if (!b4a.isBuffer(addr.key))
     throw new Error('opts.key *must* be an ed25519 public key')
   if (!Number.isInteger(+addr.port))
     throw new Error('opts.port *must* be provided')
@@ -29,21 +34,21 @@ function assertAddr(addr) {
 }
 
 module.exports = function createNode(opts = {}) {
-  const keys = isBuffer(opts.seed)
+  const keypair = b4a.isBuffer(opts.seed)
     ? sodium.crypto_sign_seed_keypair(opts.seed)
-    : opts.keys
+    : opts.keypair
 
   assertAppKey(opts)
-  assertKeys(keys)
+  assertKeypair(keypair)
 
   const createClientBoxStream = shs.createClient(
-    keys,
+    keypair,
     opts.appKey,
     opts.timeout
   )
 
   return {
-    publicKey: keys.publicKey,
+    publicKey: keypair.publicKey,
     createServer(onConnect) {
       if (typeof opts.authenticate !== 'function') {
         throw new Error(
@@ -52,7 +57,7 @@ module.exports = function createNode(opts = {}) {
         )
       }
       const createServerBoxStream = shs.createServer(
-        keys,
+        keypair,
         opts.authenticate,
         opts.appKey,
         opts.timeout

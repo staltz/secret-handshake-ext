@@ -1,11 +1,12 @@
 const tape = require('tape')
 const crypto = require('crypto')
 const pull = require('pull-stream')
+const b4a = require('b4a')
 const cl = require('chloride')
 const netshs = require('./net')
 
 function hash(str) {
-  return cl.crypto_hash_sha256(Buffer.from(str))
+  return cl.crypto_hash_sha256(b4a.from(str))
 }
 
 const alice = cl.crypto_sign_seed_keypair(hash('alice'))
@@ -13,7 +14,7 @@ const bob = cl.crypto_sign_seed_keypair(hash('bob'))
 const app_key = crypto.randomBytes(32)
 
 const bobNode = netshs({
-  keys: bob,
+  keypair: bob,
   appKey: app_key,
   authenticate(pub, extra, cb) {
     cb(null, true) // accept anyone
@@ -22,7 +23,7 @@ const bobNode = netshs({
 })
 
 const aliceNode = netshs({
-  keys: alice,
+  keypair: alice,
   appKey: app_key,
   timeout: 200,
   // alice doesn't need authenticate
@@ -34,8 +35,8 @@ tape('test net.js, correct, callback', (t) => {
   const tcpServer = bobNode
     .createServer((stream) => {
       t.true(
-        Buffer.isBuffer(stream.remote) &&
-          Buffer.isBuffer(alice.publicKey) &&
+        b4a.isBuffer(stream.remote) &&
+          b4a.isBuffer(alice.publicKey) &&
           stream.remote.equals(alice.publicKey),
         "client's ID is Alice's ID"
       )
@@ -49,18 +50,18 @@ tape('test net.js, correct, callback', (t) => {
         (err, stream) => {
           if (err) t.fail(err.message ?? err)
           t.true(
-            Buffer.isBuffer(stream.remote) &&
-              Buffer.isBuffer(bob.publicKey) &&
+            b4a.isBuffer(stream.remote) &&
+              b4a.isBuffer(bob.publicKey) &&
               stream.remote.equals(bob.publicKey),
             "server's ID is Bob's ID"
           )
 
           pull(
-            pull.values([Buffer.from('HELLO')]),
+            pull.values([b4a.from('HELLO')]),
             stream,
             pull.collect((err, data) => {
               if (err) t.fail(err.message ?? err)
-              t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'), 'echo')
+              t.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
               tcpServer.close()
               t.end()
             })
@@ -74,8 +75,8 @@ tape('test net.js, correct, stream directly', (t) => {
   const tcpServer = bobNode
     .createServer((stream) => {
       t.true(
-        Buffer.isBuffer(stream.remote) &&
-          Buffer.isBuffer(alice.publicKey) &&
+        b4a.isBuffer(stream.remote) &&
+          b4a.isBuffer(alice.publicKey) &&
           stream.remote.equals(alice.publicKey),
         "client's ID is Alice's ID"
       )
@@ -85,11 +86,11 @@ tape('test net.js, correct, stream directly', (t) => {
     .listen(() => {
       const port = tcpServer.address().port
       pull(
-        pull.values([Buffer.from('HELLO')]),
+        pull.values([b4a.from('HELLO')]),
         aliceNode.connect({ port, key: bob.publicKey }),
         pull.collect((err, data) => {
           if (err) t.fail(err.message ?? err)
-          t.deepEqual(Buffer.concat(data), Buffer.from('HELLO'), 'echo')
+          t.deepEqual(b4a.concat(data), b4a.from('HELLO'), 'echo')
           tcpServer.close()
           t.end()
         })
@@ -98,7 +99,7 @@ tape('test net.js, correct, stream directly', (t) => {
 })
 
 const bobNode2 = netshs({
-  keys: bob,
+  keypair: bob,
   appKey: app_key,
   authenticate(pub, extra, cb) {
     cb() // reject with no reason
@@ -151,7 +152,7 @@ tape('test net, error, stream', (t) => {
 
 tape('test net, create seed cap', (t) => {
   const seed = crypto.randomBytes(32)
-  const keys = cl.crypto_sign_seed_keypair(seed)
+  const keypair = cl.crypto_sign_seed_keypair(seed)
 
   const seedNode = netshs({
     seed: seed,
@@ -163,9 +164,9 @@ tape('test net, create seed cap', (t) => {
   const server = bobNode
     .createServer((stream) => {
       t.true(
-        Buffer.isBuffer(stream.remote) &&
-          Buffer.isBuffer(keys.publicKey) &&
-          stream.remote.equals(keys.publicKey),
+        b4a.isBuffer(stream.remote) &&
+          b4a.isBuffer(keypair.publicKey) &&
+          stream.remote.equals(keypair.publicKey),
         "client's ID is correct"
       )
 
