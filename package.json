@@ -1,7 +1,7 @@
 {
   "name": "secret-handshake-ext",
   "description": "A simple and highly private secure-channel protocol",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "homepage": "https://github.com/staltz/secret-handshake-ext",
   "repository": {
     "type": "git",
