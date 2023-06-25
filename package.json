@@ -9,8 +9,7 @@
   },
   "main": "lib/index.js",
   "files": [
-    "lib/**/*",
-    "types/**/*"
+    "lib/**/*"
   ],
   "types": "types/index.d.ts",
   "engines": {
@@ -31,7 +30,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build --clean && tsc --build",
     "test": "npm-run-all test:original",
     "test:original": "node --test",
     "test:shs1-test": "npm-run-all test:shs1-test:*",
