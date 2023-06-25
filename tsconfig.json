@@ -2,6 +2,7 @@
   "include": ["lib/**/*.js"],
   "exclude": ["coverage/", "node_modules/", "test/"],
   "compilerOptions": {
+    "outDir": "types",
     "checkJs": true,
     "declaration": true,
     "emitDeclarationOnly": true,

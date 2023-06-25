@@ -1,4 +1,4 @@
 node_modules
 coverage
-*.d.ts
+types
 pnpm-lock.yaml
