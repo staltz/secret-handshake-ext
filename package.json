@@ -29,7 +29,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -f lib/**/*.d.ts && tsc",
     "test": "npm-run-all test:original",
     "test:original": "node --test",
     "test:shs1-test": "npm-run-all test:shs1-test:*",
