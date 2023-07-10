@@ -31,7 +31,9 @@
   },
   "scripts": {
     "build": "tsc --build --clean && tsc --build",
-    "test": "npm-run-all test:original",
+    "typecheck": "tsc --build --clean",
+    "prepublishOnly": "npm run build",
+    "test": "npm-run-all typecheck test:original",
     "test:original": "node --test",
     "test:shs1-test": "npm-run-all test:shs1-test:*",
     "test:shs1-test:server": "shs1testserver test/shs1-test/server.js",
