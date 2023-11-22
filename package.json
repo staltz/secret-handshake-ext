@@ -46,8 +46,8 @@
     "b4a": "~1.6.4",
     "bs58": "~5.0.0",
     "debug": "^4.3.4",
-    "pull-box-stream": "~1.0.13",
     "pull-handshake": "~1.1.4",
+    "pull-secretstream": "^1.0.0",
     "pull-stream": "~3.7.0",
     "sodium-universal": "~4.0.0"
   },
