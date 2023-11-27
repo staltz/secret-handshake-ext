@@ -47,7 +47,7 @@
     "bs58": "~5.0.0",
     "debug": "^4.3.4",
     "pull-handshake": "~1.1.4",
-    "pull-secretstream": "^2.0.1",
+    "pull-secret-channel": "~1.0.0",
     "pull-stream": "~3.7.0",
     "sodium-universal": "~4.0.0"
   },
