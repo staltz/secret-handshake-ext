@@ -48,7 +48,7 @@
     "debug": "^4.3.4",
     "pull-handshake": "~1.1.4",
     "pull-secret-channel": "^1.1.0",
-    "pull-secret-handshake2": "^0.0.2",
+    "pull-secret-handshake2": "^0.0.3",
     "pull-stream": "~3.7.0",
     "sodium-universal": "~4.0.0"
   },
