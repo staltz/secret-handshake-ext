@@ -47,7 +47,8 @@
     "bs58": "~5.0.0",
     "debug": "^4.3.4",
     "pull-handshake": "~1.1.4",
-    "pull-secretstream": "^2.0.1",
+    "pull-secret-channel": "^1.1.0",
+    "pull-secret-handshake2": "^0.0.2",
     "pull-stream": "~3.7.0",
     "sodium-universal": "~4.0.0"
   },
@@ -55,6 +56,7 @@
     "@types/b4a": "^1.6.0",
     "@types/debug": "^4.1.8",
     "@types/node": "^20.2.5",
+    "@types/pull-stream": "^3.6.7",
     "c8": "^7.11.0",
     "chloride": "^2.4.1",
     "deep-equal": "^2.2.0",
