@@ -35,9 +35,9 @@
     "prepublishOnly": "npm run build",
     "test": "npm-run-all typecheck test:original",
     "test:original": "node --test",
-    "test:shs1-test": "npm-run-all test:shs1-test:*",
-    "test:shs1-test:server": "shs1testserver test/shs1-test/server.js",
-    "test:shs1-test:client": "shs1testclient test/shs1-test/client.js",
+    "test:shs2-test": "npm-run-all test:shs2-test:*",
+    "test:shs2-test:server": "shs2testserver test/shs2-test/server",
+    "test:shs2-test:client": "shs2testclient test/shs2-test/client",
     "format-code": "prettier --write \"*.js\" \"(test|lib)/*.js\"",
     "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"(test|lib)/*.js\"",
     "coverage": "c8 --reporter=lcov npm run test"
@@ -50,6 +50,7 @@
     "pull-secret-channel": "^1.1.0",
     "pull-secret-handshake2": "^0.0.3",
     "pull-stream": "~3.7.0",
+    "shs2-test": "github:ahdinosaur/shs2-test#v2",
     "sodium-universal": "~4.0.0"
   },
   "devDependencies": {
