@@ -47,8 +47,8 @@
     "bs58": "~5.0.0",
     "debug": "^4.3.4",
     "pull-handshake": "~1.1.4",
-    "pull-secret-channel": "^1.1.0",
-    "pull-secret-handshake2": "^0.0.3",
+    "pull-secret-channel": "^1.1.1",
+    "pull-secret-handshake2": "^0.0.5",
     "pull-stream": "~3.7.0",
     "shs2-test": "github:ahdinosaur/shs2-test#v2",
     "sodium-universal": "~4.0.0"

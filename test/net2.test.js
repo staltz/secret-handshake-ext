@@ -104,7 +104,7 @@ const bobNode2 = netshs({
   keypair: bob,
   appKey: app_key,
   authenticate(pub, extra, cb) {
-    cb() // reject with no reason
+    cb(null, false) // reject with no reason
   },
 })
 

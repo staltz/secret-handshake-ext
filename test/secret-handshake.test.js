@@ -23,7 +23,7 @@ function unauthorized(pubkey, extra, cb) {
 }
 
 function authorized(pubkey, extra, cb) {
-  cb()
+  cb(null, true)
 }
 
 test('test handshake and box-stream', (t, done) => {
@@ -235,7 +235,7 @@ test('unauthorized connection must cb once', (t, done) => {
   let n = 2
 
   const createClientBoxStream = shs.client(alice, app_key, 100)
-  const createServerBoxStream = shs.server(bob, authorized, app_key, 100)
+  const createServerBoxStream = shs.server(bob, unauthorized, app_key, 100)
 
   const aliceBoxStream = createClientBoxStream(
     bob.publicKey,
