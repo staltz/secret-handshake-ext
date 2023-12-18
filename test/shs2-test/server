@@ -10,8 +10,8 @@ const bob = {
   secretKey: Buffer.from(process.argv[3], 'hex'),
   publicKey: Buffer.from(process.argv[4], 'hex'),
 }
-const authorize = (pubKey, cb) => cb(null, true) // all clients are allowed
-const timeout = 10e3
+const authorize = (pubKey, authPayload, cb) => cb(null, true) // all clients are allowed
+const timeout = 2e3
 
 const shake = shs.createServer(
   bob,
@@ -30,9 +30,9 @@ const shake = shs.createServer(
   const { encryptKey, decryptKey, encryptNonce, decryptNonce } = stream.crypto
   const result = Buffer.concat([
     encryptKey,
-    encryptNonce,
+    encryptNonce.subarray(0, 12),
     decryptKey,
-    decryptNonce,
+    decryptNonce.subarray(0, 12),
   ])
 
   log(`< writing ${result.length} bytes (final)`)
