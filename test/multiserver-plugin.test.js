@@ -39,12 +39,12 @@ test('multiserver-plugin parse', (t) => {
 
   assert.deepEqual(
     plugin.parse(`shse:${pubkey}`),
-    { pubkey: buf1, extra: null },
+    { name: 'shse', pubkey: buf1, extra: null },
     'parse just pubkey'
   )
   assert.deepEqual(
     plugin.parse(`shse:${pubkey}:${extra}`),
-    { pubkey: buf1, extra: buf2 },
+    { name: 'shse', pubkey: buf1, extra: buf2 },
     'parse pubkey+extra'
   )
   assert.deepEqual(plugin.parse(`shse:notgreat`), null, 'parse invalid pubkey')
